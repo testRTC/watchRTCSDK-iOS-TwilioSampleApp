@@ -9,6 +9,8 @@ import UIKit
 
 import TwilioVideo
 
+import WatchRTC_SDK
+
 class ViewController: UIViewController {
 
     // MARK:- View Controller Members
@@ -27,6 +29,8 @@ class ViewController: UIViewController {
     var localAudioTrack: LocalAudioTrack?
     var remoteParticipant: RemoteParticipant?
     var remoteView: VideoView?
+    
+    private var watchRtc: WatchRTC?
     
     // MARK:- UI Element Outlets and handles
     
@@ -75,6 +79,8 @@ class ViewController: UIViewController {
         
         let tap = UITapGestureRecognizer(target: self, action: #selector(ViewController.dismissKeyboard))
         self.view.addGestureRecognizer(tap)
+        
+        self.watchRtc = WatchRTC(dataProvider: self)
     }
 
     override var prefersHomeIndicatorAutoHidden: Bool {
@@ -169,6 +175,10 @@ class ViewController: UIViewController {
         // Connect to the Room using the options we provided.
         room = TwilioVideoSDK.connect(options: connectOptions, delegate: self)
         
+        watchRtc?.addEvent(name: "connectToARoom",
+                           type: EventType.global,
+                           parameters: ["roomName" : self.roomTextField.text ?? ""])
+        
         logMessage(messageText: "Attempting to connect to room \(String(describing: self.roomTextField.text))")
         
         self.showRoomUI(inRoom: true)
@@ -202,6 +212,10 @@ class ViewController: UIViewController {
     
     @IBAction func disconnect(sender: AnyObject) {
         self.room!.disconnect()
+        
+        watchRtc?.addEvent(name: "disconnectFromARoom",
+                           type: EventType.global,
+                           parameters: ["roomName" : room?.name ?? ""])
         logMessage(messageText: "Attempting to disconnect from room \(room!.name)")
     }
     
@@ -375,6 +389,20 @@ extension ViewController : UITextFieldDelegate {
 // MARK:- RoomDelegate
 extension ViewController : RoomDelegate {
     func roomDidConnect(room: Room) {
+        do
+        {
+            let con: WatchRTCConfig = WatchRTCConfig(rtcApiKey: "staging:6d3873f0-f06e-4aea-9a25-1a959ab988cc", rtcRoomId: room.name, rtcPeerId: room.localParticipant?.identity ?? "YOUR_RTC_PEER_ID", keys: ["company":["YOUR_COMPANY_NAME"]])
+            watchRtc?.setConfig(config: con)
+            
+            try watchRtc?.connect()
+            watchRtc?.setUserRating(rating: 4, ratingComment: "Your rating value")
+            watchRtc?.addEvent(name: "roomDidConnect",
+                               type: EventType.global,
+                               parameters: ["roomName" : room.name])
+        } catch {
+            debugPrint(error)
+        }
+        
         logMessage(messageText: "Connected to room \(room.name) as \(room.localParticipant?.identity ?? "")")
 
         // This example only renders 1 RemoteVideoTrack at a time. Listen for all events to decide which track to render.
@@ -384,6 +412,12 @@ extension ViewController : RoomDelegate {
     }
 
     func roomDidDisconnect(room: Room, error: Error?) {
+        watchRtc?.addEvent(name: "roomDidDisconnect",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name])
+        
+        watchRtc?.disconnect()
+        
         logMessage(messageText: "Disconnected from room \(room.name), error = \(String(describing: error))")
         
         self.cleanupRemoteParticipant()
@@ -393,6 +427,10 @@ extension ViewController : RoomDelegate {
     }
 
     func roomDidFailToConnect(room: Room, error: Error) {
+        watchRtc?.addEvent(name: "roomDidFailToConnect",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name,
+                                        "error" : error.localizedDescription])
         logMessage(messageText: "Failed to connect to room with error = \(String(describing: error))")
         self.room = nil
         
@@ -400,14 +438,24 @@ extension ViewController : RoomDelegate {
     }
 
     func roomIsReconnecting(room: Room, error: Error) {
+        watchRtc?.addEvent(name: "roomIsReconnecting",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name,
+                                        "error" : error.localizedDescription])
         logMessage(messageText: "Reconnecting to room \(room.name), error = \(String(describing: error))")
     }
 
     func roomDidReconnect(room: Room) {
+        watchRtc?.addEvent(name: "roomDidReconnect",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name])
         logMessage(messageText: "Reconnected to room \(room.name)")
     }
 
     func participantDidConnect(room: Room, participant: RemoteParticipant) {
+        watchRtc?.addEvent(name: "participantDidConnect",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name])
         // Listen for events from all Participants to decide which RemoteVideoTrack to render.
         participant.delegate = self
 
@@ -415,6 +463,9 @@ extension ViewController : RoomDelegate {
     }
 
     func participantDidDisconnect(room: Room, participant: RemoteParticipant) {
+        watchRtc?.addEvent(name: "participantDidDisconnect",
+                           type: EventType.global,
+                           parameters: ["roomName" : room.name])
         logMessage(messageText: "Room \(room.name), Participant \(participant.identity) disconnected")
 
         // Nothing to do in this example. Subscription events are used to add/remove renderers.
@@ -427,17 +478,26 @@ extension ViewController : RemoteParticipantDelegate {
     func remoteParticipantDidPublishVideoTrack(participant: RemoteParticipant, publication: RemoteVideoTrackPublication) {
         // Remote Participant has offered to share the video Track.
         
+        watchRtc?.addEvent(name: "remoteParticipantDidPublishVideoTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) published \(publication.trackName) video track")
     }
 
     func remoteParticipantDidUnpublishVideoTrack(participant: RemoteParticipant, publication: RemoteVideoTrackPublication) {
         // Remote Participant has stopped sharing the video Track.
 
+        watchRtc?.addEvent(name: "remoteParticipantDidUnpublishVideoTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) unpublished \(publication.trackName) video track")
     }
 
     func remoteParticipantDidPublishAudioTrack(participant: RemoteParticipant, publication: RemoteAudioTrackPublication) {
         // Remote Participant has offered to share the audio Track.
+        
+        watchRtc?.addEvent(name: "remoteParticipantDidPublishAudioTrack",
+                                   type: EventType.global)
 
         logMessage(messageText: "Participant \(participant.identity) published \(publication.trackName) audio track")
     }
@@ -445,12 +505,18 @@ extension ViewController : RemoteParticipantDelegate {
     func remoteParticipantDidUnpublishAudioTrack(participant: RemoteParticipant, publication: RemoteAudioTrackPublication) {
         // Remote Participant has stopped sharing the audio Track.
 
+        watchRtc?.addEvent(name: "remoteParticipantDidUnpublishAudioTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) unpublished \(publication.trackName) audio track")
     }
 
     func didSubscribeToVideoTrack(videoTrack: RemoteVideoTrack, publication: RemoteVideoTrackPublication, participant: RemoteParticipant) {
         // The LocalParticipant is subscribed to the RemoteParticipant's video Track. Frames will begin to arrive now.
 
+        watchRtc?.addEvent(name: "didSubscribeToVideoTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Subscribed to \(publication.trackName) video track for Participant \(participant.identity)")
 
         if (self.remoteParticipant == nil) {
@@ -461,6 +527,9 @@ extension ViewController : RemoteParticipantDelegate {
     func didUnsubscribeFromVideoTrack(videoTrack: RemoteVideoTrack, publication: RemoteVideoTrackPublication, participant: RemoteParticipant) {
         // We are unsubscribed from the remote Participant's video Track. We will no longer receive the
         // remote Participant's video.
+        
+        watchRtc?.addEvent(name: "didUnsubscribeFromVideoTrack",
+                                   type: EventType.global)
         
         logMessage(messageText: "Unsubscribed from \(publication.trackName) video track for Participant \(participant.identity)")
 
@@ -480,6 +549,9 @@ extension ViewController : RemoteParticipantDelegate {
         // We are subscribed to the remote Participant's audio Track. We will start receiving the
         // remote Participant's audio now.
        
+        watchRtc?.addEvent(name: "didSubscribeToAudioTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Subscribed to \(publication.trackName) audio track for Participant \(participant.identity)")
     }
     
@@ -487,30 +559,53 @@ extension ViewController : RemoteParticipantDelegate {
         // We are unsubscribed from the remote Participant's audio Track. We will no longer receive the
         // remote Participant's audio.
         
+        watchRtc?.addEvent(name: "didUnsubscribeFromAudioTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Unsubscribed from \(publication.trackName) audio track for Participant \(participant.identity)")
     }
 
     func remoteParticipantDidEnableVideoTrack(participant: RemoteParticipant, publication: RemoteVideoTrackPublication) {
+        watchRtc?.addEvent(name: "remoteParticipantDidEnableVideoTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) enabled \(publication.trackName) video track")
     }
 
     func remoteParticipantDidDisableVideoTrack(participant: RemoteParticipant, publication: RemoteVideoTrackPublication) {
+        watchRtc?.addEvent(name: "remoteParticipantDidDisableVideoTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) disabled \(publication.trackName) video track")
     }
 
     func remoteParticipantDidEnableAudioTrack(participant: RemoteParticipant, publication: RemoteAudioTrackPublication) {
+        watchRtc?.addEvent(name: "remoteParticipantDidEnableAudioTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) enabled \(publication.trackName) audio track")
     }
 
     func remoteParticipantDidDisableAudioTrack(participant: RemoteParticipant, publication: RemoteAudioTrackPublication) {
+        watchRtc?.addEvent(name: "remoteParticipantDidDisableAudioTrack",
+                                   type: EventType.global)
+        
         logMessage(messageText: "Participant \(participant.identity) disabled \(publication.trackName) audio track")
     }
 
     func didFailToSubscribeToAudioTrack(publication: RemoteAudioTrackPublication, error: Error, participant: RemoteParticipant) {
+        watchRtc?.addEvent(name: "didFailToSubscribeToAudioTrack",
+                           type: EventType.global,
+                           parameters: ["error" : error.localizedDescription])
+        
         logMessage(messageText: "FailedToSubscribe \(publication.trackName) audio track, error = \(String(describing: error))")
     }
 
     func didFailToSubscribeToVideoTrack(publication: RemoteVideoTrackPublication, error: Error, participant: RemoteParticipant) {
+        watchRtc?.addEvent(name: "didFailToSubscribeToVideoTrack",
+                           type: EventType.global,
+                           parameters: ["error" : error.localizedDescription])
+        
         logMessage(messageText: "FailedToSubscribe \(publication.trackName) video track, error = \(String(describing: error))")
     }
 }
@@ -526,5 +621,358 @@ extension ViewController : VideoViewDelegate {
 extension ViewController : CameraSourceDelegate {
     func cameraSourceDidFail(source: CameraSource, error: Error) {
         logMessage(messageText: "Camera source failed with error: \(error.localizedDescription)")
+    }
+}
+
+extension ViewController: RtcDataProvider {
+    func getStats(callback: @escaping (RTCStatsReport) -> Void) {
+        
+        self.room?.getStats({ twilioStatsReportArray in
+            let rtcStatsReport = self.mapTwilioStatsReportToWatchRTC(twilioStatsReportArray)
+            
+            callback(rtcStatsReport)
+        })
+    }
+
+    private func mapTwilioStatsReportToWatchRTC(_ twilioStatsReportArray: [StatsReport]) -> RTCStatsReport {
+        var dict = [String: RTCStat]()
+        
+        for twilioReport in twilioStatsReportArray {
+            // iceCandidatePairStats
+            for iceCandidatePairStat in twilioReport.iceCandidatePairStats {
+                guard let (transportId, statsDict) = mapIceCandidatePairStats(iceCandidatePairStat) else {
+                    continue
+                }
+                
+                let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: statsDict)
+                dict[transportId] = rtcStat
+            }
+            
+            // iceCandidateStats
+            for iceCandidateStat in twilioReport.iceCandidateStats {
+                guard let (transportId, statsDict) = mapIceCandidateStats(iceCandidateStat) else {
+                    continue
+                }
+                
+                let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: statsDict)
+                dict[transportId] = rtcStat
+            }
+            
+            // localVideoTracksStats
+            for localVideoTrackStat in twilioReport.localVideoTrackStats {
+                let dictionaries = mapLocalVideoTrackStats(localVideoTrackStat)
+                for (key, value) in dictionaries {
+                    let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: value)
+                    dict[key] = rtcStat
+                }
+            }
+            
+            // localAudioTrackStats
+            for localAudioTrackStat in twilioReport.localAudioTrackStats {
+                let dictionaries = mapLocalAudioTrackStats(localAudioTrackStat)
+                for (key, value) in dictionaries {
+                    let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: value)
+                    dict[key] = rtcStat
+                }
+            }
+            
+            // remoteVideoTrackStats
+            for remoteVideoTrackStat in twilioReport.remoteVideoTrackStats {
+                let dictionaries = mapRemoteVideoTrackStats(remoteVideoTrackStat)
+                for (key, value) in dictionaries {
+                    let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: value)
+                    dict[key] = rtcStat
+                }
+            }
+            
+            // remoteAudioTrackStats
+            for remoteAudioTrackStat in twilioReport.remoteAudioTrackStats {
+                let dictionaries = mapRemoteAudioTrackStats(remoteAudioTrackStat)
+                for (key, value) in dictionaries {
+                    let rtcStat = RTCStat(timestamp: Int64(Date().timeIntervalSince1970), properties: value)
+                    dict[key] = rtcStat
+                }
+            }
+        }
+        
+        let rtcStatsReport = RTCStatsReport(report: dict, timestamp: Int64(Date().timeIntervalSince1970))
+        
+        return rtcStatsReport
+    }
+    
+    private func mapIceCandidatePairStats(_ stats: IceCandidatePairStats) -> (String, [String: Any])? {
+        guard let transportId = stats.transportId else {
+            return nil
+        }
+        
+        var iceCandidatePairStatsValues = [String: Any]()
+        
+        iceCandidatePairStatsValues["id"] = transportId
+        iceCandidatePairStatsValues["type"] = "candidate-pair"
+        
+        var state: String = ""
+        switch stats.state {
+        case .succeeded:
+            state = "succeeded"
+        case .frozen:
+            state = "frozen"
+        case .waiting:
+            state = "waiting"
+        case .inProgress:
+            state = "in-progress"
+        case .failed:
+            state = "failed"
+        case .cancelled:
+            state = "cancelled"
+        case .unknown:
+            state = "unknown"
+        @unknown default:
+            break
+        }
+        
+        iceCandidatePairStatsValues["state"] = state
+        
+        iceCandidatePairStatsValues["activeCandidatePair"] = stats.isActiveCandidatePair
+        iceCandidatePairStatsValues["relayProtocol"] = stats.relayProtocol
+        iceCandidatePairStatsValues["localCandidateId"] = stats.localCandidateId
+        iceCandidatePairStatsValues["localCandidateIp"] = stats.localCandidateIp
+        iceCandidatePairStatsValues["remoteCandidateId"] = stats.remoteCandidateId
+        iceCandidatePairStatsValues["remoteCandidateIp"] = stats.remoteCandidateIp
+        iceCandidatePairStatsValues["priority"] = stats.priority
+        iceCandidatePairStatsValues["isNominated"] = stats.isNominated
+        iceCandidatePairStatsValues["isWritable"] = stats.isWritable
+        iceCandidatePairStatsValues["isReadable"] = stats.isReadable
+        iceCandidatePairStatsValues["bytesReceived"] = stats.bytesReceived
+        iceCandidatePairStatsValues["totalRoundTripTime"] = stats.totalRoundTripTime
+        iceCandidatePairStatsValues["currentRoundTripTime"] = stats.currentRoundTripTime
+        iceCandidatePairStatsValues["availableOutgoingBitrate"] = stats.availableOutgoingBitrate
+        iceCandidatePairStatsValues["availableIncomingBitrate"] = stats.availableIncomingBitrate
+        iceCandidatePairStatsValues["requestsReceived"] = stats.requestsReceived
+        iceCandidatePairStatsValues["bytesSent"] = stats.bytesSent
+        iceCandidatePairStatsValues["requestsSent"] = stats.requestsSent
+        iceCandidatePairStatsValues["responsesReceived"] = stats.responsesReceived
+        iceCandidatePairStatsValues["responsesSent"] = stats.responsesSent
+        iceCandidatePairStatsValues["retransmissionsReceived"] = stats.retransmissionsReceived
+        iceCandidatePairStatsValues["retransmissionsSent"] = stats.retransmissionsSent
+        iceCandidatePairStatsValues["consentRequestsReceived"] = stats.consentRequestsReceived
+        iceCandidatePairStatsValues["consentRequestsSent"] = stats.consentRequestsSent
+        iceCandidatePairStatsValues["consentResponsesReceived"] = stats.consentResponsesReceived
+        iceCandidatePairStatsValues["consentResponsesSent"] = stats.consentResponsesSent
+        
+        return (transportId, iceCandidatePairStatsValues)
+    }
+    
+    private func mapIceCandidateStats(_ stats: IceCandidateStats) -> (String, [String: Any])? {
+        guard let transportId = stats.transportId else {
+            return nil
+        }
+        
+        var iceCandidateStatsValues = [String: Any]()
+        
+        iceCandidateStatsValues["id"] = transportId
+        iceCandidateStatsValues["type"] = stats.isRemote ? "remote-candidate" : "local-candidate"
+        
+        if let candidateType = stats.candidateType {
+            var candidateTypeMapped: String = ""
+            switch candidateType {
+            case "serverreflexive":
+                candidateTypeMapped = "srflx"
+            case "hostreflexive":
+                candidateTypeMapped = "host"
+            case "peerreflexive":
+                candidateTypeMapped = "dprflx"
+            default:
+                candidateTypeMapped = candidateType
+            }
+            
+            iceCandidateStatsValues["candidateType"] = candidateTypeMapped
+        }
+        
+        iceCandidateStatsValues["isDeleted"] = stats.isDeleted
+        iceCandidateStatsValues["ip"] = stats.ip
+        iceCandidateStatsValues["isRemote"] = stats.isRemote
+        iceCandidateStatsValues["port"] = stats.port
+        iceCandidateStatsValues["priority"] = stats.priority
+        iceCandidateStatsValues["protocol"] = stats.protocol
+        iceCandidateStatsValues["url"] = stats.url
+        
+        return (transportId, iceCandidateStatsValues)
+    }
+    
+    private func mapLocalVideoTrackStats(_ stats: LocalVideoTrackStats) -> [String: [String: Any]] {
+        let ssrc = stats.ssrc
+        let remoteId = "remote_\(ssrc)"
+        let codecId = "codec_\(ssrc)"
+        let mediaSourceId = "source_\(stats.trackSid)"
+        
+        var localVideoTrackStatsDictionaries = [String: [String: Any]]()
+        
+        var localVideoTrackStatsValues = [String: Any]()
+        localVideoTrackStatsValues["id"] = ssrc
+        localVideoTrackStatsValues["type"] = "outbound-rtp"
+        localVideoTrackStatsValues["kind"] = "video"
+        localVideoTrackStatsValues["mediaType"] = "video"
+        localVideoTrackStatsValues["mediaSourceId"] = mediaSourceId
+        localVideoTrackStatsValues["remoteId"] = remoteId
+        localVideoTrackStatsValues["codecId"] = codecId
+        localVideoTrackStatsValues["frameWidth"] = stats.dimensions.width
+        localVideoTrackStatsValues["frameHeight"] = stats.dimensions.height
+        localVideoTrackStatsValues["framesPerSecond"] = stats.frameRate
+        localVideoTrackStatsValues["framesEncoded"] = stats.framesEncoded
+        localVideoTrackStatsValues["bytesSent"] = stats.bytesSent
+        localVideoTrackStatsValues["packetsSent"] = stats.packetsSent
+        localVideoTrackStatsDictionaries[ssrc] = localVideoTrackStatsValues
+        
+        var remoteInboundRTPValues = [String: Any]()
+        remoteInboundRTPValues["id"] = remoteId
+        remoteInboundRTPValues["type"] = "remote-inbound-rtp"
+        remoteInboundRTPValues["kind"] = "video"
+        remoteInboundRTPValues["mediaType"] = "video"
+        remoteInboundRTPValues["roundTripTime"] = Double(stats.roundTripTime) / 1000.0
+        remoteInboundRTPValues["packetsLost"] = stats.packetsLost
+        localVideoTrackStatsDictionaries[remoteId] = remoteInboundRTPValues
+        
+        var mediaSourceValues = [String: Any]()
+        mediaSourceValues["id"] = mediaSourceId
+        mediaSourceValues["frameWidth"] = stats.captureDimensions.width
+        mediaSourceValues["frameHeight"] = stats.captureDimensions.height
+        mediaSourceValues["framesPerSecond"] = stats.captureFrameRate
+        mediaSourceValues["type"] = "media-source"
+        mediaSourceValues["kind"] = "video"
+        localVideoTrackStatsDictionaries[mediaSourceId] = mediaSourceValues
+        
+        var codecValues = [String: Any]()
+        codecValues["id"] = codecId
+        codecValues["type"] = "codec"
+        codecValues["mimeType"] = "video/\(stats.codec)"
+        codecValues["sdpFmtpLine"] = ""
+        localVideoTrackStatsDictionaries[codecId] = codecValues
+        
+        return localVideoTrackStatsDictionaries
+    }
+    
+    private func mapLocalAudioTrackStats(_ stats: LocalAudioTrackStats) -> [String: [String: Any]] {
+        let ssrc = stats.ssrc
+        let remoteId = "remote_\(ssrc)"
+        let codecId = "codec_\(ssrc)"
+        let mediaSourceId = "source_\(stats.trackSid)"
+        
+        var localAudioTrackStatsDictionaries = [String: [String: Any]]()
+        
+        var localAudioTrackStatsValues = [String: Any]()
+        localAudioTrackStatsValues["id"] = ssrc
+        localAudioTrackStatsValues["type"] = "outbound-rtp"
+        localAudioTrackStatsValues["kind"] = "audio"
+        localAudioTrackStatsValues["mediaType"] = "audio"
+        localAudioTrackStatsValues["mediaSourceId"] = mediaSourceId
+        localAudioTrackStatsValues["remoteId"] = remoteId
+        localAudioTrackStatsValues["codecId"] = codecId
+        localAudioTrackStatsValues["bytesSent"] = stats.bytesSent
+        localAudioTrackStatsValues["packetsSent"] = stats.packetsSent
+        
+        localAudioTrackStatsDictionaries[ssrc] = localAudioTrackStatsValues
+        
+        var remoteInboundRTPValues = [String: Any]()
+        remoteInboundRTPValues["id"] = remoteId
+        remoteInboundRTPValues["type"] = "remote-inbound-rtp"
+        remoteInboundRTPValues["kind"] = "audio"
+        remoteInboundRTPValues["mediaType"] = "audio"
+        remoteInboundRTPValues["jitter"] = Double(stats.jitter) / 1000.0
+        remoteInboundRTPValues["roundTripTime"] = Double(stats.roundTripTime) / 1000.0
+        remoteInboundRTPValues["packetsLost"] = stats.packetsLost
+        localAudioTrackStatsDictionaries[remoteId] = remoteInboundRTPValues
+        
+        var mediaSourceValues = [String: Any]()
+        mediaSourceValues["id"] = mediaSourceId
+        mediaSourceValues["audioLevel"] = Double(stats.audioLevel) / 32767.0
+        mediaSourceValues["type"] = "media-source"
+        mediaSourceValues["kind"] = "audio"
+        
+        localAudioTrackStatsDictionaries[mediaSourceId] = mediaSourceValues
+        
+        var codecValues = [String: Any]()
+        codecValues["id"] = codecId
+        codecValues["type"] = "codec"
+        codecValues["mimeType"] = "audio/\(stats.codec)"
+        codecValues["sdpFmtpLine"] = ""
+        localAudioTrackStatsDictionaries[codecId] = codecValues
+        
+        return localAudioTrackStatsDictionaries
+    }
+    
+    private func mapRemoteVideoTrackStats(_ stats: RemoteVideoTrackStats) -> [String: [String: Any]] {
+        let ssrc = stats.ssrc
+        let remoteId = "remote_\(ssrc)"
+        let codecId = "codec_\(ssrc)"
+        
+        var remoteVideoTrackStatsDictionaries = [String: [String: Any]]()
+        
+        var remoteVideoTrackStatsValues = [String: Any]()
+        remoteVideoTrackStatsValues["id"] = ssrc
+        remoteVideoTrackStatsValues["type"] = "inbound-rtp"
+        remoteVideoTrackStatsValues["kind"] = "video"
+        remoteVideoTrackStatsValues["mediaType"] = "video"
+        remoteVideoTrackStatsValues["remoteId"] = remoteId
+        remoteVideoTrackStatsValues["codecId"] = codecId
+        remoteVideoTrackStatsValues["frameWidth"] = stats.dimensions.width
+        remoteVideoTrackStatsValues["frameHeight"] = stats.dimensions.height
+        remoteVideoTrackStatsValues["framesPerSecond"] = stats.frameRate
+        remoteVideoTrackStatsValues["bytesReceived"] = stats.bytesReceived
+        remoteVideoTrackStatsValues["packetsReceived"] = stats.packetsReceived
+        remoteVideoTrackStatsValues["packetsLost"] = stats.packetsLost
+        remoteVideoTrackStatsDictionaries[ssrc] = remoteVideoTrackStatsValues
+        
+        var remoteOutboundRTPValues = [String: Any]()
+        remoteOutboundRTPValues["id"] = remoteId
+        remoteOutboundRTPValues["type"] = "remote-outbound-rtp"
+        remoteOutboundRTPValues["kind"] = "video"
+        remoteOutboundRTPValues["mediaType"] = "video"
+        remoteVideoTrackStatsDictionaries[remoteId] = remoteOutboundRTPValues
+        
+        var codecValues = [String: Any]()
+        codecValues["id"] = codecId
+        codecValues["type"] = "codec"
+        codecValues["mimeType"] = "video/\(stats.codec)"
+        codecValues["sdpFmtpLine"] = ""
+        remoteVideoTrackStatsDictionaries[codecId] = codecValues
+        
+        return remoteVideoTrackStatsDictionaries
+    }
+    
+    private func mapRemoteAudioTrackStats(_ stats: RemoteAudioTrackStats) -> [String: [String: Any]] {
+        let ssrc = stats.ssrc
+        let remoteId = "remote_\(ssrc)"
+        let codecId = "codec_\(ssrc)"
+        
+        var remoteAudioTrackStatsDictionaries = [String: [String: Any]]()
+        var remoteAudioTrackStatsValues = [String: Any]()
+        remoteAudioTrackStatsValues["id"] = ssrc
+        remoteAudioTrackStatsValues["type"] = "inbound-rtp"
+        remoteAudioTrackStatsValues["kind"] = "audio"
+        remoteAudioTrackStatsValues["mediaType"] = "audio"
+        remoteAudioTrackStatsValues["remoteId"] = remoteId
+        remoteAudioTrackStatsValues["codecId"] = codecId
+        remoteAudioTrackStatsValues["jitter"] = Double(stats.jitter) / 1000.0
+        remoteAudioTrackStatsValues["bytesReceived"] = stats.bytesReceived
+        remoteAudioTrackStatsValues["packetsReceived"] = stats.packetsReceived
+        remoteAudioTrackStatsValues["packetsLost"] = stats.packetsLost
+        remoteAudioTrackStatsValues["audioLevel"] = Double(stats.audioLevel) / 32767.0
+        remoteAudioTrackStatsDictionaries[ssrc] = remoteAudioTrackStatsValues
+        
+        var remoteOutboundRTPValues = [String: Any]()
+        remoteOutboundRTPValues["id"] = remoteId
+        remoteOutboundRTPValues["type"] = "remote-outbound-rtp"
+        remoteOutboundRTPValues["kind"] = "audio"
+        remoteOutboundRTPValues["mediaType"] = "audio"
+        remoteAudioTrackStatsDictionaries[remoteId] = remoteOutboundRTPValues
+        
+        var codecValues = [String: Any]()
+        codecValues["id"] = codecId
+        codecValues["type"] = "codec"
+        codecValues["mimeType"] = "audio/\(stats.codec)"
+        codecValues["sdpFmtpLine"] = ""
+        remoteAudioTrackStatsDictionaries[codecId] = codecValues
+        
+        return remoteAudioTrackStatsDictionaries
     }
 }

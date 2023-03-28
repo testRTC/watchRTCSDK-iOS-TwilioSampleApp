@@ -17,6 +17,7 @@
 		8B79D4711C2252A100489AA5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8B79D4701C2252A100489AA5 /* Assets.xcassets */; };
 		8B79D4741C2252A100489AA5 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8B79D4721C2252A100489AA5 /* LaunchScreen.storyboard */; };
 		A8DC8DAD299BFAA000200428 /* TwilioVideo in Frameworks */ = {isa = PBXBuildFile; productRef = A8DC8DAC299BFAA000200428 /* TwilioVideo */; };
+		A8DC8DB0299C127600200428 /* WatchRTC_SDK in Frameworks */ = {isa = PBXBuildFile; productRef = A8DC8DAF299C127600200428 /* WatchRTC_SDK */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -60,6 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A8DC8DAD299BFAA000200428 /* TwilioVideo in Frameworks */,
+				A8DC8DB0299C127600200428 /* WatchRTC_SDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -167,6 +169,7 @@
 			name = VideoQuickStart;
 			packageProductDependencies = (
 				A8DC8DAC299BFAA000200428 /* TwilioVideo */,
+				A8DC8DAF299C127600200428 /* WatchRTC_SDK */,
 			);
 			productName = VideoQuickStart;
 			productReference = 8B79D4661C2252A100489AA5 /* VideoQuickStart.app */;
@@ -199,6 +202,7 @@
 			mainGroup = 8B79D45D1C2252A100489AA5;
 			packageReferences = (
 				A8DC8DAB299BFAA000200428 /* XCRemoteSwiftPackageReference "twilio-video-ios" */,
+				A8DC8DAE299C127600200428 /* XCRemoteSwiftPackageReference "watchRTCSDK-iOS" */,
 			);
 			productRefGroup = 8B79D4671C2252A100489AA5 /* Products */;
 			projectDirPath = "";
@@ -462,6 +466,14 @@
 				minimumVersion = 5.2.0;
 			};
 		};
+		A8DC8DAE299C127600200428 /* XCRemoteSwiftPackageReference "watchRTCSDK-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/testRTC/watchRTCSDK-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -469,6 +481,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A8DC8DAB299BFAA000200428 /* XCRemoteSwiftPackageReference "twilio-video-ios" */;
 			productName = TwilioVideo;
+		};
+		A8DC8DAF299C127600200428 /* WatchRTC_SDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A8DC8DAE299C127600200428 /* XCRemoteSwiftPackageReference "watchRTCSDK-iOS" */;
+			productName = WatchRTC_SDK;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
