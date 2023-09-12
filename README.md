@@ -1,17 +1,7 @@
+# Sample Twilio SDK iOS app with integrated WatchRTC SDK
 
-[ ![Download](https://img.shields.io/badge/Download-iOS%20SDK-blue.svg) ](https://www.twilio.com/docs/video/ios#add-the-sdk)
-[![Docs](https://img.shields.io/badge/iOS%20Docs-OK-blue.svg)](https://twilio.github.io/twilio-video-ios/docs/latest_5.x/index.html)
+## All of the `WatchRTC` related code is located in [ViewController.swift](VideoQuickStart/ViewController.swift) file
 
-**NEW:** Please check out the newly open-sourced [video collaboration app](https://github.com/twilio/twilio-video-app-ios)
-built with iOS Video SDK.
-
-# Twilio Video Quickstart for iOS
-
-> NOTE: These sample applications use the Twilio Video 5.x APIs. For examples using previous releases please see the following repositories:
->  - For 4.x APIs, please see the [4.x](https://github.com/twilio/video-quickstart-ios/releases/tag/4.x) tag.
->  - For 3.x APIs, please see the [3.x](https://github.com/twilio/video-quickstart-ios/tree/3.x) branch.
->  - For 2.x APIs, please see the [2.x](https://github.com/twilio/video-quickstart-ios/tree/2.x) branch.
->  - For 1.x APIs, please see the [1.x](https://github.com/twilio/video-quickstart-ios/tree/1.x) branch.
 
 Get started with Video on iOS:
 
